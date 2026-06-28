@@ -2,7 +2,7 @@
 
 A clean, self-contained vanilla HTML/CSS/JS prototype for tracking fabric orders, invoices, customer payments, and the commissions earned from manufacturers.
 
-> **Live repo**: https://github.com/abhayvadalia/fabric-commission-tracker
+> **Live repo**: https://github.com/abhayvadalia/AV_GROK_Fabric_Commission_Tracker
 
 This is a fully functional browser-based prototype.
 
