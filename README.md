@@ -2,6 +2,10 @@
 
 A clean, self-contained vanilla HTML/CSS/JS prototype for tracking fabric orders, invoices, customer payments, and the commissions earned from manufacturers.
 
+> **Live repo**: https://github.com/abhayvadalia/fabric-commission-tracker
+
+This is a fully functional browser-based prototype.
+
 ## What it does
 
 - **Orders**: Capture customer orders to manufacturers, with line items (fabric, qty, rate) and commission terms (percent or fixed).
@@ -42,4 +46,4 @@ No build step, no server, no install.
 - Charts (Chart.js via CDN)
 - Multi-user / export to real backend
 
-This prototype follows the understanding captured in `Fabric_Commission_Tracker_Understanding.docx`.
+This prototype follows the requirements captured in the original spec document.
