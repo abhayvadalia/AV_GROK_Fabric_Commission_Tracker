@@ -588,26 +588,30 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="text-xs text-slate-500 block mb-1 font-medium">Manufacturer (Vendor)</label>
-            <select id="new-invoice-manufacturer" onchange="refreshInvoiceOrderOptions()" class="w-full border border-slate-300 rounded-2xl px-4 py-2.5"></select>
+            <select id="new-invoice-manufacturer" class="w-full border border-slate-300 rounded-2xl px-4 py-2.5" disabled></select>
+            <div id="invoice-manuf-note" class="text-[10px] text-emerald-600 mt-0.5 hidden">Auto-filled from selected orders</div>
           </div>
           <div>
             <label class="text-xs text-slate-500 block mb-1 font-medium">Customer (Buyer)</label>
-            <select id="new-invoice-customer" onchange="refreshInvoiceOrderOptions()" class="w-full border border-slate-300 rounded-2xl px-4 py-2.5"></select>
+            <select id="new-invoice-customer" class="w-full border border-slate-300 rounded-2xl px-4 py-2.5" disabled></select>
+            <div id="invoice-cust-note" class="text-[10px] text-emerald-600 mt-0.5 hidden">Auto-filled from selected orders</div>
           </div>
+        </div>
+
+        <div id="invoice-mix-warning" class="hidden text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl px-3 py-2">
+          Selected orders belong to <strong>different customers or manufacturers</strong>. An invoice must link orders for a single customer and single manufacturer.
         </div>
 
         <div>
           <div class="flex items-center justify-between mb-2">
-            <div class="text-sm font-medium">Link Orders (many-to-many supported)</div>
-            <button onclick="refreshInvoiceOrderOptions()" class="text-xs px-3 py-1 bg-slate-100 rounded-2xl flex items-center gap-x-1 hover:bg-slate-200">
-              <i class="fa-solid fa-sync text-xs"></i> <span>Refresh</span>
-            </button>
+            <div class="text-sm font-medium">Select Orders to Link</div>
+            <button onclick="clearInvoiceOrderSelections()" class="text-xs px-3 py-1 bg-slate-100 rounded-2xl hover:bg-slate-200">Clear</button>
           </div>
           
           <div id="invoice-linked-orders" class="border border-slate-200 rounded-2xl p-3 max-h-[160px] overflow-auto space-y-1 text-sm">
             <!-- Populated dynamically with checkboxes -->
           </div>
-          <div class="text-xs text-slate-500 mt-1">Selected orders will be linked. Amount can be entered manually or based on order values.</div>
+          <div class="text-xs text-slate-500 mt-1">Check orders below. Customer and Manufacturer will be automatically filled from the orders you select.</div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2054,11 +2058,11 @@
       modal.classList.remove('hidden');
       modal.classList.add('flex');
 
-      // populate manufacturer + customer
+      // Populate selects (but they will be disabled and auto-filled from orders)
       const manufSel = document.getElementById('new-invoice-manufacturer');
       const custSel = document.getElementById('new-invoice-customer');
-      manufSel.innerHTML = '<option value="">Select manufacturer...</option>';
-      custSel.innerHTML = '<option value="">Select customer...</option>';
+      manufSel.innerHTML = '<option value="">—</option>';
+      custSel.innerHTML = '<option value="">—</option>';
 
       state.manufacturers.forEach(m => {
         const o = document.createElement('option');
@@ -2074,6 +2078,11 @@
         custSel.appendChild(o);
       });
 
+      // Reset notes and warning
+      document.getElementById('invoice-manuf-note').classList.add('hidden');
+      document.getElementById('invoice-cust-note').classList.add('hidden');
+      document.getElementById('invoice-mix-warning').classList.add('hidden');
+
       // default dates
       const todayStr = new Date().toISOString().split('T')[0];
       document.getElementById('new-invoice-date').value = todayStr;
@@ -2086,9 +2095,11 @@
       document.getElementById('new-invoice-amount').value = '';
 
       invoiceModalSelectedOrderIds = [];
-      if (preselectOrderId) invoiceModalSelectedOrderIds.push(preselectOrderId);
+      if (preselectOrderId) {
+        invoiceModalSelectedOrderIds.push(preselectOrderId);
+      }
 
-      // populate orders list
+      // Show all orders (no pre-filtering). refresh will also call infer.
       refreshInvoiceOrderOptions();
     }
 
@@ -2096,23 +2107,33 @@
       const modal = document.getElementById('modal-new-invoice');
       modal.classList.remove('flex');
       modal.classList.add('hidden');
+
+      // Full reset
       invoiceModalSelectedOrderIds = [];
+      document.getElementById('invoice-mix-warning').classList.add('hidden');
+      document.getElementById('invoice-manuf-note').classList.add('hidden');
+      document.getElementById('invoice-cust-note').classList.add('hidden');
+
+      const manufSel = document.getElementById('new-invoice-manufacturer');
+      const custSel = document.getElementById('new-invoice-customer');
+      if (manufSel) {
+        manufSel.disabled = false;
+        manufSel.value = '';
+      }
+      if (custSel) {
+        custSel.disabled = false;
+        custSel.value = '';
+      }
     }
 
     function refreshInvoiceOrderOptions() {
       const container = document.getElementById('invoice-linked-orders');
       container.innerHTML = '';
 
-      const manufId = document.getElementById('new-invoice-manufacturer').value;
-      const custId = document.getElementById('new-invoice-customer').value;
-
-      let available = state.orders;
-
-      if (manufId) available = available.filter(o => o.manufacturerId === manufId);
-      if (custId) available = available.filter(o => o.customerId === custId);
+      const available = state.orders;
 
       if (available.length === 0) {
-        container.innerHTML = '<div class="text-xs text-slate-400 italic p-2">No matching orders. Select different manufacturer/customer or create orders first.</div>';
+        container.innerHTML = '<div class="text-xs text-slate-400 italic p-2">No orders found. Create some orders first.</div>';
         updateLinkedOrdersCount();
         return;
       }
@@ -2141,17 +2162,93 @@
             invoiceModalSelectedOrderIds = invoiceModalSelectedOrderIds.filter(x => x !== oid);
           }
           updateLinkedOrdersCount();
+          inferFromSelectedOrders();
         };
 
         container.appendChild(row);
       });
 
       updateLinkedOrdersCount();
+      inferFromSelectedOrders();
+    }
+
+    function clearInvoiceOrderSelections() {
+      invoiceModalSelectedOrderIds = [];
+      document.getElementById('invoice-mix-warning').classList.add('hidden');
+      document.getElementById('invoice-manuf-note').classList.add('hidden');
+      document.getElementById('invoice-cust-note').classList.add('hidden');
+
+      const manufSel = document.getElementById('new-invoice-manufacturer');
+      const custSel = document.getElementById('new-invoice-customer');
+      manufSel.value = '';
+      custSel.value = '';
+      manufSel.disabled = false;
+      custSel.disabled = false;
+
+      refreshInvoiceOrderOptions();
+      updateLinkedOrdersCount();
     }
 
     function updateLinkedOrdersCount() {
       const el = document.getElementById('invoice-linked-count');
       if (el) el.textContent = invoiceModalSelectedOrderIds.length;
+    }
+
+    function inferFromSelectedOrders() {
+      const manufSel = document.getElementById('new-invoice-manufacturer');
+      const custSel = document.getElementById('new-invoice-customer');
+      const manufNote = document.getElementById('invoice-manuf-note');
+      const custNote = document.getElementById('invoice-cust-note');
+      const warning = document.getElementById('invoice-mix-warning');
+
+      warning.classList.add('hidden');
+      manufNote.classList.add('hidden');
+      custNote.classList.add('hidden');
+
+      if (invoiceModalSelectedOrderIds.length === 0) {
+        manufSel.value = '';
+        custSel.value = '';
+        manufSel.disabled = false;
+        custSel.disabled = false;
+        return;
+      }
+
+      // Get all selected orders
+      const selectedOrders = invoiceModalSelectedOrderIds
+        .map(id => state.orders.find(o => o.id === id))
+        .filter(Boolean);
+
+      if (selectedOrders.length === 0) return;
+
+      // Collect unique values
+      const custIds = [...new Set(selectedOrders.map(o => o.customerId))];
+      const manufIds = [...new Set(selectedOrders.map(o => o.manufacturerId))];
+
+      if (custIds.length > 1 || manufIds.length > 1) {
+        // Mixed — show warning, do not auto-fill
+        warning.classList.remove('hidden');
+        manufSel.disabled = false;
+        custSel.disabled = false;
+        // Leave selects as-is or clear if conflicting
+        if (custIds.length > 1) custSel.value = '';
+        if (manufIds.length > 1) manufSel.value = '';
+        return;
+      }
+
+      // Consistent — auto-fill and lock
+      const customerId = custIds[0];
+      const manufacturerId = manufIds[0];
+
+      if (customerId) {
+        custSel.value = customerId;
+        custSel.disabled = true;
+        custNote.classList.remove('hidden');
+      }
+      if (manufacturerId) {
+        manufSel.value = manufacturerId;
+        manufSel.disabled = true;
+        manufNote.classList.remove('hidden');
+      }
     }
 
     function prefillInvoiceAmountFromOrders() {
@@ -2164,8 +2261,8 @@
     }
 
     function createNewInvoice() {
-      const manufId = document.getElementById('new-invoice-manufacturer').value;
-      const custId = document.getElementById('new-invoice-customer').value;
+      let manufId = document.getElementById('new-invoice-manufacturer').value;
+      let custId = document.getElementById('new-invoice-customer').value;
       const invNumber = document.getElementById('new-invoice-number').value.trim() || generateId('INV-', nextIds.invoice);
       const date = document.getElementById('new-invoice-date').value;
       const due = document.getElementById('new-invoice-due').value;
@@ -2174,16 +2271,31 @@
       const commType = document.getElementById('new-invoice-comm-type').value;
       const commVal = parseFloat(document.getElementById('new-invoice-comm-value').value) || 0;
 
+      // If orders are linked, determine customer & manufacturer from them (must be consistent)
+      if (invoiceModalSelectedOrderIds.length > 0) {
+        const selectedOrders = invoiceModalSelectedOrderIds
+          .map(id => state.orders.find(o => o.id === id))
+          .filter(Boolean);
+
+        const custIds = [...new Set(selectedOrders.map(o => o.customerId))];
+        const manufIds = [...new Set(selectedOrders.map(o => o.manufacturerId))];
+
+        if (custIds.length !== 1 || manufIds.length !== 1) {
+          alert('Selected orders must all belong to the same customer and the same manufacturer.');
+          return;
+        }
+
+        custId = custIds[0];
+        manufId = manufIds[0];
+      }
+
       if (!manufId || !custId) {
-        alert('Please select both Manufacturer and Customer');
+        alert('Please select orders (to auto-detect customer & manufacturer) or choose them manually.');
         return;
       }
       if (amount <= 0) {
         alert('Invoice amount must be greater than 0');
         return;
-      }
-      if (invoiceModalSelectedOrderIds.length === 0) {
-        if (!confirm('No orders linked. Create invoice without linking any orders?')) return;
       }
 
       const invoice = {
