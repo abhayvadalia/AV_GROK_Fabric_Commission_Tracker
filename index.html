@@ -516,6 +516,25 @@
         </div>
       </div>
     </div>
+
+    <!-- FOOTER -->
+    <footer class="mt-12 pt-6 border-t border-slate-200 text-xs text-slate-500">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-y-3">
+        <div class="flex flex-wrap items-center gap-x-2 text-slate-600">
+          <span class="font-semibold font-mono text-teal-800" id="app-version"></span>
+          <span class="text-slate-300">|</span>
+          <span>Fabric Commission Tracker</span>
+          <span class="text-slate-300 hidden sm:inline">•</span>
+          <span class="text-[10px] text-slate-400" id="app-updated"></span>
+        </div>
+        <div class="text-sm font-medium text-teal-900 tracking-tight">
+          Prototype by <span class="font-semibold">KRUXIN Global</span>
+        </div>
+      </div>
+      <div class="mt-3 pt-3 border-t border-slate-100 text-[10px] text-center text-slate-400">
+        Demo version • All data stored locally in browser • Not for production use
+      </div>
+    </footer>
   </div>
 
   <!-- NEW ORDER MODAL -->
@@ -839,6 +858,10 @@
       payment: 9001,
       commission: 40001
     };
+
+    // Demo version info
+    const APP_VERSION = "v1.1.0";
+    const APP_UPDATED = "Jun 28, 2026";
 
     function generateId(prefix, num) {
       return prefix + String(num).padStart(4, '0');
@@ -2885,6 +2908,15 @@
 
       // Default nav active
       document.getElementById('nav-dashboard').classList.add('nav-active', 'bg-teal-800', 'text-white');
+
+      // Set footer version info for demo
+      const verEl = document.getElementById('app-version');
+      const updEl = document.getElementById('app-updated');
+      if (verEl) verEl.textContent = APP_VERSION;
+      if (updEl) updEl.textContent = 'Updated ' + APP_UPDATED;
+
+      // Customer demo polish
+      console.log('%c[KRUXIN] Fabric Commission Tracker demo ready — ' + APP_VERSION, 'color:#0f766e');
 
       // Keyboard shortcuts hint
       document.addEventListener('keydown', function(e) {
