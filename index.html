@@ -287,6 +287,7 @@
               <th class="text-right px-5 py-3 data-table">Value</th>
               <th class="text-left px-5 py-3 data-table">Commission</th>
               <th class="text-center px-5 py-3 data-table">Status</th>
+              <th class="text-left px-5 py-3 data-table">Pending Items</th>
               <th class="w-12"></th>
             </tr>
           </thead>
@@ -943,7 +944,7 @@
           date: dateStr(27),
           status: 'Partially Fulfilled',
           lines: [
-            { id: 'L1', desc: 'Linen Blend - Natural', qty: 850, unit: 'm', rate: 145, commissionType: 'percent', commissionValue: 6.5 }
+            { id: 'L1', desc: 'Linen Blend - Natural', qty: 850, unit: 'm', rate: 145, commissionType: 'percent', commissionValue: 6.5, fulfilledQty: 300 }
           ]
         },
         {
@@ -964,7 +965,7 @@
           date: dateStr(12),
           status: 'Partially Fulfilled',
           lines: [
-            { id: 'L1', desc: 'Organic Cotton Sateen', qty: 3100, unit: 'm', rate: 82, commissionType: 'percent', commissionValue: 5.5 }
+            { id: 'L1', desc: 'Organic Cotton Sateen', qty: 3100, unit: 'm', rate: 82, commissionType: 'percent', commissionValue: 5.5, fulfilledQty: 1200 }
           ]
         }
       ];
@@ -1063,6 +1064,19 @@
 
     function getOrderTotal(order) {
       return order.lines.reduce((sum, l) => sum + (l.qty * l.rate), 0);
+    }
+
+    function getPendingLines(order) {
+      if (order.status !== 'Partially Fulfilled') return '';
+      const pending = [];
+      order.lines.forEach(l => {
+        const fulfilled = l.fulfilledQty != null ? l.fulfilledQty : 0;
+        const p = l.qty - fulfilled;
+        if (p > 0) {
+          pending.push(`${l.desc}: ${p} ${l.unit}`);
+        }
+      });
+      return pending.join(' • ');
     }
 
     function getInvoiceOutstanding(invoice) {
@@ -1309,6 +1323,9 @@
               ${order.status}
             </span>
           </td>
+          <td class="px-5 py-3 text-xs text-amber-600 leading-tight">
+            ${getPendingLines(order)}
+          </td>
           <td class="px-4 text-right">
             <i class="fa-solid fa-chevron-right text-slate-300"></i>
           </td>
@@ -1317,7 +1334,7 @@
       });
 
       if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-6 text-center text-sm text-slate-400">No orders found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="px-5 py-6 text-center text-sm text-slate-400">No orders found.</td></tr>`;
       }
     }
 
@@ -2036,7 +2053,8 @@
           unit: 'm',
           rate,
           commissionType: cType,
-          commissionValue: cVal
+          commissionValue: cVal,
+          fulfilledQty: 0
         };
 
         // Attach itemId if chosen from master
